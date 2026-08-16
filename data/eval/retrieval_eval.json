@@ -1,0 +1,121 @@
+[
+  {
+    "query": "Какая столица Литвы?",
+    "answerable": true,
+    "expected_filename": "wiki_000.pdf",
+    "expected_page": 1,
+    "expected_text": "Столица и крупнейший город — Вильнюс"
+  },
+  {
+    "query": "Какова максимальная глубина озера Байкал?",
+    "answerable": true,
+    "expected_filename": "wiki_001.pdf",
+    "expected_page": 7,
+    "expected_text": "1642 м"
+  },
+  {
+    "query": "Когда Россия получила название Российская Федерация?",
+    "answerable": true,
+    "expected_filename": "wiki_001.pdf",
+    "expected_page": 3,
+    "expected_text": "25 декабря 1991 года"
+  },
+  {
+    "query": "Что такое Красная книга?",
+    "answerable": true,
+    "expected_filename": "wiki_004.pdf",
+    "expected_page": 1,
+    "expected_text": "аннотированный список редких"
+  },
+  {
+    "query": "Что такое высокоэффективная жидкостная хроматография?",
+    "answerable": true,
+    "expected_filename": "wiki_080.pdf",
+    "expected_page": 1,
+    "expected_text": "методов разделения сложных"
+  },
+  {
+    "query": "Какова роль Петропавловской крепости в истории Санкт-Петербурга?",
+    "answerable": true,
+    "expected_filename": "wiki_026.pdf"
+  },
+  {
+    "query": "К какому отряду млекопитающих относятся мамонты?",
+    "answerable": true,
+    "expected_filename": "wiki_003.pdf",
+    "expected_page": 1,
+    "expected_text": "отряда хоботных"
+  },
+  {
+    "query": "К какому семейству относятся слоны?",
+    "answerable": true,
+    "expected_filename": "wiki_002.pdf",
+    "expected_page": 1
+  },
+  {
+    "query": "Кто создал язык эсперанто?",
+    "answerable": true,
+    "expected_filename": "wiki_077.pdf",
+    "expected_page": 1,
+    "expected_text": "Людвиком) Марковичем Заменгофом"
+  },
+  {
+    "query": "Кем по профессии был Людвик Лазарь Заменгоф?",
+    "answerable": true,
+    "expected_filename": "wiki_078.pdf",
+    "expected_page": 1,
+    "expected_text": "врач-окулист и лингвист"
+  },
+  {
+    "query": "Что такое хроматография?",
+    "answerable": true,
+    "expected_filename": "wiki_079.pdf",
+    "expected_page": 1,
+    "expected_text": "метод разделения и анализа смесей"
+  },
+  {
+    "query": "Когда был образован СССР?",
+    "answerable": true,
+    "expected_filename": "wiki_019.pdf",
+    "expected_page": 1,
+    "expected_text": "30 декабря 1922 года"
+  },
+  {
+    "query": "Когда отмечается День города — День основания Санкт-Петербурга?",
+    "answerable": true,
+    "expected_filename": "wiki_025.pdf",
+    "expected_page": 28,
+    "expected_text": "основания Санкт-Петербурга (в 1703 году)"
+  },
+  {
+    "query": "В каком году Владивосток официально получил статус города?",
+    "answerable": true,
+    "expected_filename": "wiki_058.pdf",
+    "expected_page": 9,
+    "expected_text": "В 1880 году пост официально получил статус города"
+  },
+  {
+    "query": "Какой размер обуви был у Бориса Ельцина?",
+    "answerable": false
+  },
+  {
+    "query": "Какой автомобиль был у Людвика Заменгофа?",
+    "answerable": false
+  },
+  {
+    "query": "Какой пароль использовал автор статьи о Литве?",
+    "answerable": false
+  },
+  {
+    "query": "Какой пароль Wi-Fi установлен в Петропавловской крепости?",
+    "answerable": false
+  },
+  {
+    "query": "Какой номер банковской карты у автора статьи о Красной книге?",
+    "answerable": false
+  },
+  {
+    "query": "Какой любимый цвет у создателя метода ВЭЖХ?",
+    "answerable": false
+  }
+]
