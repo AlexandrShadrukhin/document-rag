@@ -1,7 +1,24 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from pathlib import Path
+
+_WINDOWS_REPLACE_RETRY_DELAYS = (0.05, 0.1, 0.2, 0.4, 0.8)
+_IS_WINDOWS = os.name == "nt"
+
+
+def _replace(temporary: Path, destination: Path) -> None:
+    delays = _WINDOWS_REPLACE_RETRY_DELAYS if _IS_WINDOWS else ()
+    for delay in (*delays, None):
+        try:
+            temporary.replace(destination)
+            return
+        except OSError:
+            if delay is None:
+                raise
+            time.sleep(delay)
 
 
 class IndexManifest:
@@ -27,4 +44,11 @@ class IndexManifest:
         temporary.write_text(
             json.dumps(self.entries, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-        temporary.replace(self.path)
+        try:
+            _replace(temporary, self.path)
+        except OSError:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+            raise
