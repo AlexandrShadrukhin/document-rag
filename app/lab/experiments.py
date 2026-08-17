@@ -15,7 +15,9 @@ from app.lab.resources import directory_size
 from app.runtime import ApplicationContainer
 from app.schemas import SearchResult
 
-REINDEX_FIELDS = frozenset({"chunk_size", "chunk_overlap", "embedding_model"})
+REINDEX_FIELDS = frozenset(
+    {"chunk_size", "chunk_overlap", "embedding_model", "embedding_batch_size"}
+)
 QUERY_TIME_FIELDS = frozenset(
     {
         "dense_top_k",

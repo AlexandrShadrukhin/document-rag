@@ -255,6 +255,7 @@ class LabController:
         mode: IndexTargetMode = DEFAULT_INDEX_TARGET,
         qdrant_backend: QdrantBackendMode | None = None,
         qdrant_url: str | None = None,
+        embedding_batch_size: int | None = None,
     ) -> IndexTarget:
         corpus = corpus_path.expanduser().resolve()
         backend = qdrant_backend or self.settings.qdrant_mode
@@ -263,11 +264,26 @@ class LabController:
         server_url = (qdrant_url or self.settings.qdrant_url).strip()
         if backend == "server" and not server_url:
             raise ValueError("Qdrant Server URL is required")
+        selected_batch_size = (
+            self.settings.embedding_batch_size
+            if embedding_batch_size is None
+            else embedding_batch_size
+        )
+        if selected_batch_size <= 0:
+            raise ValueError("Embedding batch size must be an integer greater than zero")
         runtime_settings = (
             self.settings
-            if backend == self.settings.qdrant_mode and server_url == self.settings.qdrant_url
+            if (
+                backend == self.settings.qdrant_mode
+                and server_url == self.settings.qdrant_url
+                and selected_batch_size == self.settings.embedding_batch_size
+            )
             else self.settings.model_copy(
-                update={"qdrant_mode": backend, "qdrant_url": server_url}
+                update={
+                    "qdrant_mode": backend,
+                    "qdrant_url": server_url,
+                    "embedding_batch_size": selected_batch_size,
+                }
             )
         )
         if mode == "baseline":
@@ -278,6 +294,7 @@ class LabController:
             "chunk_size": self.settings.chunk_size,
             "chunk_overlap": self.settings.chunk_overlap,
             "embedding_model": self.settings.embedding_model,
+            "embedding_batch_size": selected_batch_size,
         }
         if backend == "server":
             index_config.update(
@@ -322,9 +339,12 @@ class LabController:
         mode: IndexTargetMode = DEFAULT_INDEX_TARGET,
         qdrant_backend: QdrantBackendMode | None = None,
         qdrant_url: str | None = None,
+        embedding_batch_size: int | None = None,
     ) -> ActiveIndexInfo:
         corpus = corpus_path.expanduser().resolve()
-        target = self.plan_index_target(corpus, mode, qdrant_backend, qdrant_url)
+        target = self.plan_index_target(
+            corpus, mode, qdrant_backend, qdrant_url, embedding_batch_size
+        )
         settings = target.settings
         if settings.qdrant_mode == "server":
             self._require_qdrant_server(settings)
@@ -420,6 +440,7 @@ class LabController:
         baseline_confirmed: bool = False,
         qdrant_backend: QdrantBackendMode | None = None,
         qdrant_url: str | None = None,
+        embedding_batch_size: int | None = None,
     ) -> OperationResult:
         corpus_path = corpus_path.expanduser().resolve()
         if target_mode == "baseline" and not baseline_confirmed:
@@ -431,6 +452,7 @@ class LabController:
             target_mode,
             qdrant_backend,
             qdrant_url,
+            embedding_batch_size,
         )
         target_settings = target.settings
         if target_settings.qdrant_mode == "server":
@@ -444,6 +466,7 @@ class LabController:
                 "experiment_root": (
                     str(target.experiment_root) if target.experiment_root else None
                 ),
+                "embedding_batch_size": target_settings.embedding_batch_size,
             },
             on_resource_sample=on_resource,
         )

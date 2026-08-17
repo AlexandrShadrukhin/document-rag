@@ -270,6 +270,15 @@ class RAGLabApp:
         ttk.Label(frame, textvariable=self.qdrant_status_var).grid(
             row=4, column=1, columnspan=2, sticky="w"
         )
+        ttk.Label(frame, text="Embedding batch size").grid(
+            row=5, column=0, sticky="w", pady=4
+        )
+        self.embedding_batch_size_var = tk.StringVar(
+            value=str(self.settings.embedding_batch_size)
+        )
+        ttk.Entry(frame, textvariable=self.embedding_batch_size_var, width=16).grid(
+            row=5, column=1, sticky="w", pady=4
+        )
         values = (
             f"Chunk size: {self.settings.chunk_size}\n"
             f"Overlap: {self.settings.chunk_overlap}\n"
@@ -279,7 +288,7 @@ class RAGLabApp:
             f"candidates={self.settings.rerank_candidates}"
         )
         ttk.Label(frame, text=values, justify="left").grid(
-            row=5, column=0, columnspan=3, sticky="w", pady=8
+            row=6, column=0, columnspan=3, sticky="w", pady=8
         )
         self.index_target_details_var = tk.StringVar()
         ttk.Label(
@@ -287,30 +296,31 @@ class RAGLabApp:
             textvariable=self.index_target_details_var,
             justify="left",
         ).grid(
-            row=6, column=0, columnspan=3, sticky="w", pady=8
+            row=7, column=0, columnspan=3, sticky="w", pady=8
         )
         ttk.Button(frame, text="Build / Update Index", command=self._build_index).grid(
-            row=7, column=1, sticky="w", pady=8
+            row=8, column=1, sticky="w", pady=8
         )
         ttk.Button(
             frame,
             text="Activate Existing Index",
             command=self._activate_existing_index,
-        ).grid(row=7, column=2, sticky="w", pady=8)
+        ).grid(row=8, column=2, sticky="w", pady=8)
         ttk.Label(
             frame,
             text=(
                 "Update uses the manifest and skips unchanged files. "
                 "Baseline is never deleted automatically."
             ),
-        ).grid(row=8, column=0, columnspan=3, sticky="w")
+        ).grid(row=9, column=0, columnspan=3, sticky="w")
         self.index_output = scrolledtext.ScrolledText(frame, height=22, wrap="word")
-        self.index_output.grid(row=9, column=0, columnspan=3, sticky="nsew", pady=8)
-        frame.rowconfigure(9, weight=1)
+        self.index_output.grid(row=10, column=0, columnspan=3, sticky="nsew", pady=8)
+        frame.rowconfigure(10, weight=1)
         self.index_corpus_var.trace_add("write", self._refresh_index_target_details)
         self.index_target_var.trace_add("write", self._refresh_index_target_details)
         self.qdrant_backend_var.trace_add("write", self._qdrant_backend_changed)
         self.qdrant_server_url_var.trace_add("write", self._qdrant_server_url_changed)
+        self.embedding_batch_size_var.trace_add("write", self._refresh_index_target_details)
         self._qdrant_backend_changed()
         self._refresh_index_target_details()
 
@@ -354,6 +364,7 @@ class RAGLabApp:
                 mode,  # type: ignore[arg-type]
                 backend,  # type: ignore[arg-type]
                 self.qdrant_server_url_var.get(),
+                self._embedding_batch_size(),
             )
             settings = target.settings
             index_root = settings.corpus_path.parent
@@ -386,6 +397,15 @@ class RAGLabApp:
             )
         except (OSError, ValueError) as error:
             self.index_target_details_var.set(f"Index target unavailable: {error}")
+
+    def _embedding_batch_size(self) -> int:
+        try:
+            value = int(self.embedding_batch_size_var.get().strip())
+        except ValueError as error:
+            raise ValueError("Embedding batch size must be an integer greater than zero") from error
+        if value <= 0:
+            raise ValueError("Embedding batch size must be an integer greater than zero")
+        return value
 
     def _build_chat_tab(self) -> None:
         frame = ttk.Frame(self.chat_tab, padding=12)
@@ -693,6 +713,11 @@ class RAGLabApp:
         if not corpus.is_dir():
             messagebox.showerror("Corpus", f"Corpus directory does not exist: {corpus}")
             return
+        try:
+            embedding_batch_size = self._embedding_batch_size()
+        except ValueError as error:
+            messagebox.showerror("Embedding batch size", str(error))
+            return
         target_mode = self.index_target_var.get()
         baseline_confirmed = False
         if target_mode == "baseline":
@@ -713,6 +738,7 @@ class RAGLabApp:
                 baseline_confirmed=baseline_confirmed,
                 qdrant_backend=self.qdrant_backend_var.get(),  # type: ignore[arg-type]
                 qdrant_url=self.qdrant_server_url_var.get(),
+                embedding_batch_size=embedding_batch_size,
             )
             self.events.put(("index_result", result))
 
@@ -724,11 +750,17 @@ class RAGLabApp:
             messagebox.showerror("Corpus", f"Corpus directory does not exist: {corpus}")
             return
         try:
+            embedding_batch_size = self._embedding_batch_size()
+        except ValueError as error:
+            messagebox.showerror("Embedding batch size", str(error))
+            return
+        try:
             info = self.controller.activate_index(
                 corpus,
                 self.index_target_var.get(),  # type: ignore[arg-type]
                 self.qdrant_backend_var.get(),  # type: ignore[arg-type]
                 self.qdrant_server_url_var.get(),
+                embedding_batch_size,
             )
         except (FileNotFoundError, OSError, ValueError) as error:
             messagebox.showerror("Activate RAG index", str(error))
@@ -759,6 +791,11 @@ class RAGLabApp:
             f"Chunking: {float(summary.get('chunking_seconds', 0)):.3f} s",
             f"Model loading: {float(summary.get('embedding_model_loading_seconds', 0)):.3f} s",
             f"Embeddings: {float(summary.get('embedding_seconds', 0)):.3f} s",
+            f"Manifest serialization: "
+            f"{float(summary.get('manifest_serialization_seconds', 0)):.3f} s",
+            f"Manifest write: {float(summary.get('manifest_write_seconds', 0)):.3f} s",
+            f"Manifest atomic replace: "
+            f"{float(summary.get('manifest_atomic_replace_seconds', 0)):.3f} s",
             f"Qdrant: {qdrant_seconds:.3f} s",
             f"BM25: {float(summary.get('bm25_build_seconds', 0)):.3f} s",
             f"Total: {float(summary.get('total_seconds', 0)):.3f} s",

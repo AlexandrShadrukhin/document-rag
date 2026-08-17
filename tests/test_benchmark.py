@@ -115,6 +115,7 @@ def test_corpus_fingerprint_and_benchmark_comparison(tmp_path: Path) -> None:
             "chunk_size": None,
             "chunk_overlap": None,
             "embedding_model": None,
+            "embedding_batch_size": None,
             "embedding_device": None,
             "qdrant_backend": None,
             "qdrant_server_version": None,

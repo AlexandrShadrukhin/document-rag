@@ -18,6 +18,8 @@ from app.retrieval.embeddings import EmbeddingProvider, SentenceTransformerEmbed
 from app.retrieval.manifest import IndexManifest
 from app.retrieval.vector_store import QdrantVectorStore
 
+_MANIFEST_CHECKPOINT_BATCHES = 64
+
 
 @dataclass
 class IndexingStats:
@@ -30,6 +32,10 @@ class IndexingStats:
     bytes_processed: int = 0
     discovery_seconds: float = 0.0
     manifest_handling_seconds: float = 0.0
+    manifest_serialization_seconds: float = 0.0
+    manifest_write_seconds: float = 0.0
+    manifest_atomic_replace_seconds: float = 0.0
+    manifest_persist_count: int = 0
     parsing_seconds: float = 0.0
     cleaning_seconds: float = 0.0
     chunking_seconds: float = 0.0
@@ -47,6 +53,9 @@ class IndexingStats:
         return {
             "discovery": self.discovery_seconds,
             "manifest_handling": self.manifest_handling_seconds,
+            "manifest_serialization": self.manifest_serialization_seconds,
+            "manifest_write": self.manifest_write_seconds,
+            "manifest_atomic_replace": self.manifest_atomic_replace_seconds,
             "parsing": self.parsing_seconds,
             "cleaning": self.cleaning_seconds,
             "chunking": self.chunking_seconds,
@@ -124,6 +133,12 @@ class IndexingService:
         if limit is not None:
             files = files[:limit]
         stats = IndexingStats(files_discovered=len(files))
+        manifest_timing_start = (
+            self.manifest.timings.serialization_seconds,
+            self.manifest.timings.write_seconds,
+            self.manifest.timings.atomic_replace_seconds,
+            self.manifest.timings.persist_count,
+        )
         stats.discovery_seconds = time.perf_counter() - discovery_started
         emit(
             progress_callback,
@@ -188,7 +203,7 @@ class IndexingService:
         new_chunks_path = Path(new_file_handle.name)
         new_file_handle.close()
         replaced_ids: set[str] = set()
-        manifest_records: list[tuple[str, str, str]] = []
+        manifest_record_batches: list[list[tuple[str, str, str]]] = []
         try:
             for batch_index, offset in enumerate(iterator, start=1):
                 batch_metadata = changed[
@@ -213,6 +228,7 @@ class IndexingService:
                     ),
                 )
                 prepared: list[PreparedDocument] = []
+                batch_manifest_records: list[tuple[str, str, str]] = []
                 for file_path, _, old_id in batch_metadata:
                     document = self.pipeline.prepare(file_path)
                     prepared.append(document)
@@ -228,7 +244,9 @@ class IndexingService:
                     if document.pages:
                         page = document.pages[0]
                         replaced_ids.add(page.document_id)
-                        manifest_records.append((page.source, page.file_hash, page.document_id))
+                        batch_manifest_records.append(
+                            (page.source, page.file_hash, page.document_id)
+                        )
                     emit(
                         progress_callback,
                         ProgressEvent(
@@ -248,6 +266,7 @@ class IndexingService:
                         ),
                     )
 
+                manifest_record_batches.append(batch_manifest_records)
                 chunks = [chunk for document in prepared for chunk in document.chunks]
                 batch_old_ids = {
                     metadata[2] for metadata in batch_metadata if metadata[2] is not None
@@ -350,11 +369,35 @@ class IndexingService:
                 stats.lexical_corpus_seconds = time.perf_counter() - lexical_started
                 emit(progress_callback, ProgressEvent("lexical_corpus", "completed"))
                 manifest_started = time.perf_counter()
-                for source, file_hash, document_id in manifest_records:
-                    self.manifest.record(source, file_hash, document_id)
+                for batch_index, records in enumerate(manifest_record_batches, start=1):
+                    for source, file_hash, document_id in records:
+                        self.manifest.record(source, file_hash, document_id)
+                    if (
+                        batch_index % _MANIFEST_CHECKPOINT_BATCHES == 0
+                        and batch_index < len(manifest_record_batches)
+                    ):
+                        self.manifest.persist()
+                # Always finish with an atomic persist, including an exact checkpoint boundary.
+                self.manifest.persist(force=True)
                 stats.manifest_handling_seconds += time.perf_counter() - manifest_started
+            else:
+                # A completed indexing run always leaves an atomically persisted manifest.
+                self.manifest.persist(force=True)
         finally:
             new_chunks_path.unlink(missing_ok=True)
+
+        stats.manifest_serialization_seconds = (
+            self.manifest.timings.serialization_seconds - manifest_timing_start[0]
+        )
+        stats.manifest_write_seconds = (
+            self.manifest.timings.write_seconds - manifest_timing_start[1]
+        )
+        stats.manifest_atomic_replace_seconds = (
+            self.manifest.timings.atomic_replace_seconds - manifest_timing_start[2]
+        )
+        stats.manifest_persist_count = (
+            self.manifest.timings.persist_count - manifest_timing_start[3]
+        )
 
         stats.embedding_model_loading_seconds = self._backend_timings[
             "embedding_model_loading"

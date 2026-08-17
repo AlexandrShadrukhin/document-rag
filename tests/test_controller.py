@@ -260,6 +260,21 @@ def test_gui_runtime_backend_selection_changes_experiment_identity(tmp_path: Pat
     assert server.settings.manifest_path.is_relative_to(server.experiment_root)  # type: ignore[arg-type]
 
 
+def test_embedding_batch_size_changes_experiment_identity(tmp_path: Path) -> None:
+    settings = settings_for_test(tmp_path)
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    controller = LabController(settings)
+
+    batch_64 = controller.plan_index_target(corpus, embedding_batch_size=64)
+    batch_128 = controller.plan_index_target(corpus, embedding_batch_size=128)
+
+    assert batch_64.settings.embedding_batch_size == 64
+    assert batch_128.settings.embedding_batch_size == 128
+    assert batch_64.experiment_root != batch_128.experiment_root
+    assert batch_64.settings.qdrant_collection != batch_128.settings.qdrant_collection
+
+
 def test_unavailable_server_does_not_fall_back_to_local(
     tmp_path: Path, monkeypatch: Any
 ) -> None:

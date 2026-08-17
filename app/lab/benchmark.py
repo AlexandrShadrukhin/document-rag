@@ -278,6 +278,7 @@ def benchmark_comparison(paths: list[Path]) -> list[dict[str, object]]:
                 "chunk_size": config.get("chunk_size"),
                 "chunk_overlap": config.get("chunk_overlap"),
                 "embedding_model": config.get("embedding_model"),
+                "embedding_batch_size": config.get("embedding_batch_size"),
                 "embedding_device": summary.get("selected_embedding_device"),
                 "qdrant_backend": config.get("qdrant_mode"),
                 "qdrant_server_version": qdrant.get("server_version"),
